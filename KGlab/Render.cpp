@@ -141,12 +141,10 @@ struct debug_print
 } debout;
 #endif
 
-//библиотека для разгрузки изображений
-//https://github.com/nothings/stb
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-//внутренняя логика "движка"
 #include "MyOGL.h"
 extern OpenGL gl;
 #include "Light.h"
@@ -180,75 +178,44 @@ void switchModes(OpenGL *sender, KeyEventArg arg)
 	}
 }
 
-//Текстовый прямоугольничек в верхнем правом углу.
-//OGL не предоставляет возможности для хранения текста
-//внутри этого класса создается картинка с текстом (через виндовый GDI),
-//в виде текстуры накладывается на прямоугольник и рисуется на экране.
-//Это самый простой способ что то написать на экране
-//но ооооочень не оптимальный
-GuiTextRectangle text;
 
-//айдишник для текстуры
+GuiTextRectangle text;
 GLuint texId;
-//выполняется один раз перед первым рендером
+
 void initRender()
 {
 	//==============НАСТРОЙКА ТЕКСТУР================
-	//4 байта на хранение пикселя
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
-	//просим сгенерировать нам Id для текстуры
-	//и положить его в texId
 	glGenTextures(1, &texId);
 
-	//делаем текущую текстуру активной
-	//все, что ниже будет применено texId текстуре.
 	glBindTexture(GL_TEXTURE_2D, texId);
 
 
 	int x, y, n;
 
-	//загружаем картинку
-	//см. #include "stb_image.h" 
-	unsigned char* data = stbi_load("texture.png", &x, &y, &n, 4);
-	//x - ширина изображения
-	//y - высота изображения
-	//n - количество каналов
-	//4 - нужное нам количество каналов
-	//пиксели будут хранится в памяти [R-G-B-A]-[R-G-B-A]-[..... 
-	// по 4 байта на пиксель - по байту на канал
-	//пустые каналы будут равны 255
 
-	//Картинка хранится в памяти перевернутой 
-	//так как ее начало в левом верхнем углу
-	//по этому мы ее переворачиваем -
-	//меняем первую строку с последней,
-	//вторую с предпоследней, и.т.д.
-	unsigned char* _tmp = new unsigned char[x * 4]; //времянка
+	unsigned char* data = stbi_load("texture.png", &x, &y, &n, 4);
+
+	unsigned char* _tmp = new unsigned char[x * 4]; 
 	for (int i = 0; i < y / 2; ++i)
 	{
-		std::memcpy(_tmp, data + i * x * 4, x * 4);//переносим строку i в времянку
-		std::memcpy(data + i * x * 4, data + (y - 1 - i) * x * 4, x * 4); //(y-1-i)я строка -> iя строка
-		std::memcpy(data + (y - 1 - i) * x * 4, _tmp, x * 4); //времянка -> (y-1-i)я строка
+		std::memcpy(_tmp, data + i * x * 4, x * 4);
+		std::memcpy(data + i * x * 4, data + (y - 1 - i) * x * 4, x * 4); 
+		std::memcpy(data + (y - 1 - i) * x * 4, _tmp, x * 4); 
 	}
 	delete[] _tmp;
 
 
-	//загрузка изображения в видеопамять
+	
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, x, y, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-
-	//выгрузка изображения из опперативной памяти
 	stbi_image_free(data);
 
-
-	//настройка режима наложения текстур
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-												  //GL_REPLACE -- полная замена политога текстурой
-	//настройка тайлинга
+												
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	//настройка фильтрации
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	//======================================================
@@ -281,18 +248,12 @@ void Render(double delta_time)
 {    
 	glEnable(GL_DEPTH_TEST);
 	
-	//натройка камеры и света
-	//в этих функциях находятся OGLные функции
-	//которые устанавливают параметры источника света
-	//и моделвью матрицу, связанные с камерой.
-
 	if (gl.isKeyPressed('F')) //если нажата F - свет из камеры
 	{
 		light.SetPosition(camera.x(), camera.y(), camera.z());
 	}
 	camera.SetUpCamera();
 	light.SetUpLight();
-
 
 	//рисуем оси
 	gl.DrawAxes();
@@ -301,7 +262,6 @@ void Render(double delta_time)
 	glDisable(GL_TEXTURE_2D);
 	glDisable(GL_BLEND);
 	
-
 	//включаем режимы, в зависимости от нажания клавиш. см void switchModes(OpenGL *sender, KeyEventArg arg)
 	if (lightning)
 		glEnable(GL_LIGHTING);
@@ -319,7 +279,6 @@ void Render(double delta_time)
 		
 	//=============НАСТРОЙКА МАТЕРИАЛА==============
 
-
 	//настройка материала, все что рисуется ниже будет иметь этот метериал.
 	//массивы с настройками материала
 	float  amb[] = { 0.2, 0.2, 0.1, 1. };
@@ -327,49 +286,16 @@ void Render(double delta_time)
 	float spec[] = { 0.9, 0.8, 0.3, 1. };
 	float sh = 0.2f * 256;
 
-	//фоновая
 	glMaterialfv(GL_FRONT, GL_AMBIENT, amb);
-	//дифузная
 	glMaterialfv(GL_FRONT, GL_DIFFUSE, dif);
-	//зеркальная
 	glMaterialfv(GL_FRONT, GL_SPECULAR, spec); 
-	//размер блика
 	glMaterialf(GL_FRONT, GL_SHININESS, sh);
 
-	//чтоб было красиво, без квадратиков (сглаживание освещения)
-	glShadeModel(GL_SMOOTH); //закраска по Гуро      
-			   //(GL_SMOOTH - плоская закраска)
+	glShadeModel(GL_SMOOTH);     
+			 
 
 	//============ РИСОВАТЬ ТУТ ==============
 
-	
-
-	//квадратик станкина
-	//так как расчет освещения происходит только в вершинах
-	// (закраска по Гуро)
-	//то рисуем квадратик из более маленьких квадратиков
-	/*glBindTexture(GL_TEXTURE_2D, texId);
-	glBegin(GL_QUADS);
-	glNormal3d(0, 0, 1);
-	double h = 0.025;
-	for (double x = h; x<= 1; x+= h)
-		for (double y = h; y <= 1; y += h)
-		{
-			glColor3d(1, 1, 0);
-
-			glTexCoord2d(x, y);
-			glVertex2d(x, y);
-
-			glTexCoord2d(x-h, y);
-			glVertex2d(x-h, y);
-
-			glTexCoord2d(x - h, y-h);
-			glVertex2d(x - h, y-h);
-
-			glTexCoord2d(x, y - h);
-			glVertex2d(x, y - h);
-		}
-	glEnd();*/
 	double A[]{ 1, 0, 0 };
 	double B[]{ 2.5, 2, 0 };
 	double C[]{ 1, 4, 0 };
@@ -378,7 +304,6 @@ void Render(double delta_time)
 	double F[]{ -3.5, -2, 0 };
 	double G[]{ -0.5, -4, 0 };
 	double H[]{ 2.5, -2.5, 0 };
-
 
 	double A1[]{ 1, 0, 3 };
 	double B1[]{ 2.5, 2, 3 };
@@ -389,12 +314,8 @@ void Render(double delta_time)
 	double G1[]{ -0.5, -4, 3 };
 	double H1[]{ 2.5, -2.5, 3 };
 
-
-
-
 	glBegin(GL_TRIANGLES); glColor3d(1, 0, 0.5);
 	glNormal3d(0, 0, -1);
-	//glNormal3dv(normal);
 	glVertex3dv(F);
 	glVertex3dv(G);
 	glVertex3dv(H);
@@ -554,27 +475,13 @@ void Render(double delta_time)
 
 	//================Сообщение в верхнем левом углу=======================
 
-	//переключаемся на матрицу проекции
 	glMatrixMode(GL_PROJECTION);
-	//сохраняем текущую матрицу проекции с перспективным преобразованием
 	glPushMatrix();
-	//загружаем единичную матрицу в матрицу проекции
 	glLoadIdentity();
-
-	//устанавливаем матрицу паралельной проекции
 	glOrtho(0, gl.getWidth() - 1, 0, gl.getHeight() - 1, 0, 1);
-
-	//переключаемся на моделвью матрицу
 	glMatrixMode(GL_MODELVIEW);
-	//сохраняем матрицу
 	glPushMatrix();
-    //сбразываем все трансформации и настройки камеры загрузкой единичной матрицы
 	glLoadIdentity();
-
-	//отрисованное тут будет визуалзироватся в 2д системе координат
-	//нижний левый угол окна - точка (0,0)
-	//верхний правый угол (ширина_окна - 1, высота_окна - 1)
-
 	
 	std::wstringstream ss;
 	ss << std::fixed << std::setprecision(3);
@@ -594,7 +501,6 @@ void Render(double delta_time)
 	text.setText(ss.str().c_str());
 	text.Draw();
 
-	//восстанавливаем матрицу проекции на перспективу, которую сохраняли ранее.
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
